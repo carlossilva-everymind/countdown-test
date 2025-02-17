@@ -255,24 +255,23 @@ $this->image .= ";";
 }
  
 /**
-* Compare gif blocks? What is a block?
-* @param type $GlobalBlock
-* @param type $LocalBlock
-* @param type $Len
-* @return type
-*/
+ * Compare GIF blocks.
+ * @param string $GlobalBlock
+ * @param string $LocalBlock
+ * @param int $Len
+ * @return bool
+ */
 private function blockCompare($GlobalBlock, $LocalBlock, $Len) {
-for ($i = 0; $i < $Len; $i++) {
-if (
-$GlobalBlock { 3 * $i + 0 } != $LocalBlock { 3 * $i + 0 } ||
-$GlobalBlock { 3 * $i + 1 } != $LocalBlock { 3 * $i + 1 } ||
-$GlobalBlock { 3 * $i + 2 } != $LocalBlock { 3 * $i + 2 }
-) {
-return ( 0 );
-}
-}
- 
-return ( 1 );
+    for ($i = 0; $i < $Len; $i++) {
+        if (
+            $GlobalBlock[3 * $i + 0] != $LocalBlock[3 * $i + 0] ||
+            $GlobalBlock[3 * $i + 1] != $LocalBlock[3 * $i + 1] ||
+            $GlobalBlock[3 * $i + 2] != $LocalBlock[3 * $i + 2]
+        ) {
+            return false;
+        }
+    }
+    return true;
 }
  
 /**
