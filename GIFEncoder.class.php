@@ -104,29 +104,46 @@ $this->transparent_colour = ( $red > -1 && $green > -1 && $blue > -1 ) ?
 }
  
 /**
-* Buffer the images and check to make sure they are vaild
-* @param array $source_images the array of source images
-* @throws Exception
-*/
+ * Buffer the images and check to make sure they are valid
+ * @param array $source_images the array of source images
+ * @throws Exception
+ */
 private function buffer_images($source_images) {
-for ($i = 0; $i < count($source_images); $i++) {
-$this->buffer [] = $source_images [$i];
-if (substr($this->buffer [$i], 0, 6) != "GIF87a" && substr($this->buffer [$i], 0, 6) != "GIF89a") {
-throw new Exception('Image at position ' . $i. ' is not a gif');
-}
-for ($j = ( 13 + 3 * ( 2 << ( ord($this->buffer [$i] { 10 }) & 0x07 ) ) ), $k = TRUE; $k; $j++) {
-switch ($this->buffer [$i] { $j }) {
-case "!":
-if (( substr($this->buffer [$i], ( $j + 3), 8) ) == "NETSCAPE") {
-throw new Exception('You cannot make an animation from an animated gif.');
-}
-break;
-case ";":
-$k = FALSE;
-break;
-}
-}
-}
+    if (!is_array($source_images)) {
+        throw new Exception('Invalid input: expected an array of image data.');
+    }
+
+    $this->buffer = []; // Ensure buffer is initialized
+
+    for ($i = 0; $i < count($source_images); $i++) {
+        $this->buffer[] = $source_images[$i];
+
+        // Ensure we have enough data before checking
+        if (strlen($this->buffer[$i]) < 6 || 
+            (substr($this->buffer[$i], 0, 6) != "GIF87a" && substr($this->buffer[$i], 0, 6) != "GIF89a")) {
+            throw new Exception('Image at position ' . $i . ' is not a valid GIF.');
+        }
+
+        // Calculate offset for color table
+        $offset = 13 + 3 * (2 << (ord($this->buffer[$i][10]) & 0x07));
+
+        for ($j = $offset, $k = true; $k; $j++) {
+            if (!isset($this->buffer[$i][$j])) {
+                break; // Prevent out-of-bounds access
+            }
+
+            switch ($this->buffer[$i][$j]) {
+                case "!":
+                    if (isset($this->buffer[$i][$j + 3]) && substr($this->buffer[$i], $j + 3, 8) === "NETSCAPE") {
+                        throw new Exception('You cannot make an animation from an animated GIF.');
+                    }
+                    break;
+                case ";":
+                    $k = false;
+                    break;
+            }
+        }
+    }
 }
  
 /**
