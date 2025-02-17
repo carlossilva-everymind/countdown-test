@@ -172,72 +172,79 @@ private function addHeader() {
 }
  
 /**
-* Add a frame to the animation
-* @param int $frame The frame to be added
-* @param int $delay The delay associated with the frame
-*/
+ * Add a frame to the animation
+ * @param int $frame The frame to be added
+ * @param int $delay The delay associated with the frame
+ * @throws Exception
+ */
 private function addFrame($frame, $delay) {
-$Locals_str = 13 + 3 * ( 2 << ( ord($this->buffer [$frame] { 10 }) & 0x07 ) );
- 
-$Locals_end = strlen($this->buffer [$frame]) - $Locals_str - 1;
-$Locals_tmp = substr($this->buffer [$frame], $Locals_str, $Locals_end);
- 
-$Global_len = 2 << ( ord($this->buffer [0] { 10 }) & 0x07 );
-$Locals_len = 2 << ( ord($this->buffer [$frame] { 10 }) & 0x07 );
- 
-$Global_rgb = substr($this->buffer [0], 13, 3 * ( 2 << ( ord($this->buffer [0] { 10 }) & 0x07 ) ));
-$Locals_rgb = substr($this->buffer [$frame], 13, 3 * ( 2 << ( ord($this->buffer [$frame] { 10 }) & 0x07 ) ));
- 
-$Locals_ext = "!\xF9\x04" . chr(( $this->DIS << 2 ) + 0) .
-chr(( $delay >> 0 ) & 0xFF) . chr(( $delay >> 8 ) & 0xFF) . "\x0\x0";
- 
-if ($this->transparent_colour > -1 && ord($this->buffer [$frame] { 10 }) & 0x80) {
-for ($j = 0; $j < ( 2 << ( ord($this->buffer [$frame] { 10 }) & 0x07 ) ); $j++) {
-if (
-ord($Locals_rgb { 3 * $j + 0 }) == ( ( $this->transparent_colour >> 16 ) & 0xFF ) &&
-ord($Locals_rgb { 3 * $j + 1 }) == ( ( $this->transparent_colour >> 8 ) & 0xFF ) &&
-ord($Locals_rgb { 3 * $j + 2 }) == ( ( $this->transparent_colour >> 0 ) & 0xFF )
-) {
-$Locals_ext = "!\xF9\x04" . chr(( $this->DIS << 2 ) + 1) .
-chr(( $delay >> 0 ) & 0xFF) . chr(( $delay >> 8 ) & 0xFF) . chr($j) . "\x0";
-break;
-}
-}
-}
-switch ($Locals_tmp { 0 }) {
-case "!":
-$Locals_img = substr($Locals_tmp, 8, 10);
-$Locals_tmp = substr($Locals_tmp, 18, strlen($Locals_tmp) - 18);
-break;
-case ",":
-$Locals_img = substr($Locals_tmp, 0, 10);
-$Locals_tmp = substr($Locals_tmp, 10, strlen($Locals_tmp) - 10);
-break;
-}
-if (ord($this->buffer [$frame] { 10 }) & 0x80 && $this->first_frame === FALSE) {
-if ($Global_len == $Locals_len) {
-if ($this->blockCompare($Global_rgb, $Locals_rgb, $Global_len)) {
-$this->image .= ( $Locals_ext . $Locals_img . $Locals_tmp );
-} else {
-$byte = ord($Locals_img { 9 });
-$byte |= 0x80;
-$byte &= 0xF8;
-$byte |= ( ord($this->buffer [0] { 10 }) & 0x07 );
-$Locals_img { 9 } = chr($byte);
-$this->image .= ( $Locals_ext . $Locals_img . $Locals_rgb . $Locals_tmp );
-}
-} else {
-$byte = ord($Locals_img { 9 });
-$byte |= 0x80;
-$byte &= 0xF8;
-$byte |= ( ord($this->buffer [$frame] { 10 }) & 0x07 );
-$Locals_img { 9 } = chr($byte);
-$this->image .= ( $Locals_ext . $Locals_img . $Locals_rgb . $Locals_tmp );
-}
-} else {
-$this->image .= ( $Locals_ext . $Locals_img . $Locals_tmp );
-}
-$this->first_frame = FALSE;
+    if (!isset($this->buffer[$frame]) || strlen($this->buffer[$frame]) < 13) {
+        throw new Exception("Frame buffer is empty or too small to be a valid GIF.");
+    }
+
+    $Locals_str = 13 + 3 * (2 << (ord($this->buffer[$frame][10]) & 0x07));
+    $bufferLength = strlen($this->buffer[$frame]);
+    $Locals_end = max(0, $bufferLength - $Locals_str - 1); // Prevent negative values
+
+    $Locals_tmp = substr($this->buffer[$frame], $Locals_str, min($Locals_end, $bufferLength - $Locals_str));
+
+    $Global_len = 2 << (ord($this->buffer[0][10]) & 0x07);
+    $Locals_len = 2 << (ord($this->buffer[$frame][10]) & 0x07);
+
+    $Global_rgb = substr($this->buffer[0], 13, 3 * (2 << (ord($this->buffer[0][10]) & 0x07)));
+    $Locals_rgb = substr($this->buffer[$frame], 13, 3 * (2 << (ord($this->buffer[$frame][10]) & 0x07)));
+
+    $Locals_ext = "!\xF9\x04" . chr(($this->DIS << 2) + 0) . chr($delay & 0xFF) . chr(($delay >> 8) & 0xFF) . "\x0\x0";
+
+    if ($this->transparent_colour > -1 && ord($this->buffer[$frame][10]) & 0x80) {
+        for ($j = 0; $j < (2 << (ord($this->buffer[$frame][10]) & 0x07)); $j++) {
+            if (
+                ord($Locals_rgb[3 * $j + 0]) == (($this->transparent_colour >> 16) & 0xFF) &&
+                ord($Locals_rgb[3 * $j + 1]) == (($this->transparent_colour >> 8) & 0xFF) &&
+                ord($Locals_rgb[3 * $j + 2]) == (($this->transparent_colour >> 0) & 0xFF)
+            ) {
+                $Locals_ext = "!\xF9\x04" . chr(($this->DIS << 2) + 1) . chr($delay & 0xFF) . chr(($delay >> 8) & 0xFF) . chr(min(255, max(0, $j))) . "\x0";
+                break;
+            }
+        }
+    }
+
+    switch ($Locals_tmp[0]) {
+        case "!":
+            $Locals_img = substr($Locals_tmp, 8, 10);
+            $Locals_tmp = substr($Locals_tmp, 18);
+            break;
+        case ",":
+            $Locals_img = substr($Locals_tmp, 0, 10);
+            $Locals_tmp = substr($Locals_tmp, 10);
+            break;
+    }
+
+    if (ord($this->buffer[$frame][10]) & 0x80 && $this->first_frame === false) {
+        if ($Global_len == $Locals_len) {
+            if ($this->blockCompare($Global_rgb, $Locals_rgb, $Global_len)) {
+                $this->image .= ($Locals_ext . $Locals_img . $Locals_tmp);
+            } else {
+                $byte = ord($Locals_img[9]);
+                $byte |= 0x80;
+                $byte &= 0xF8;
+                $byte |= (ord($this->buffer[0][10]) & 0x07);
+                $Locals_img[9] = chr($byte);
+                $this->image .= ($Locals_ext . $Locals_img . $Locals_rgb . $Locals_tmp);
+            }
+        } else {
+            $byte = ord($Locals_img[9]);
+            $byte |= 0x80;
+            $byte &= 0xF8;
+            $byte |= (ord($this->buffer[$frame][10]) & 0x07);
+            $Locals_img[9] = chr($byte);
+            $this->image .= ($Locals_ext . $Locals_img . $Locals_rgb . $Locals_tmp);
+        }
+    } else {
+        $this->image .= ($Locals_ext . $Locals_img . $Locals_tmp);
+    }
+
+    $this->first_frame = false;
 }
  
 /**
