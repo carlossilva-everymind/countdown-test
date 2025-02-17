@@ -147,17 +147,28 @@ private function buffer_images($source_images) {
 }
  
 /**
-* Add the gif header to the image
-*/
+ * Add the GIF header to the image
+ */
 private function addHeader() {
-$cmap = 0;
-$this->image = 'GIF89a';
-if (ord($this->buffer [0] { 10 }) & 0x80) {
-$cmap = 3 * ( 2 << ( ord($this->buffer [0] { 10 }) & 0x07 ) );
-$this->image .= substr($this->buffer [0], 6, 7);
-$this->image .= substr($this->buffer [0], 13, $cmap);
-$this->image .= "!\377\13NETSCAPE2.0\3\1" . $this->word($this->number_of_loops) . "\0";
-}
+    $cmap = 0;
+    $this->image = 'GIF89a';
+
+    // Ensure buffer exists and contains enough data
+    if (!isset($this->buffer[0]) || strlen($this->buffer[0]) < 13) {
+        throw new Exception("Buffer is empty or invalid.");
+    }
+
+    // Check if the GIF has a global color table (bit 0x80 is set)
+    if (ord($this->buffer[0][10]) & 0x80) {
+        $cmap = 3 * (2 << (ord($this->buffer[0][10]) & 0x07));
+
+        // Append header and color table
+        $this->image .= substr($this->buffer[0], 6, 7);
+        $this->image .= substr($this->buffer[0], 13, $cmap);
+
+        // Add Netscape loop extension
+        $this->image .= "!\xFF\x0BNETSCAPE2.0\x03\x01" . $this->word($this->number_of_loops) . "\x00";
+    }
 }
  
 /**
